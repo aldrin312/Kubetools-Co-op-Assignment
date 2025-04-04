@@ -6,8 +6,9 @@ import pandas as pd
 import joblib
 from sklearn.metrics import accuracy_score, roc_auc_score
 
-def train_and_evaluate_component(X_scaled_csv: str, y: list, model_output: str):
-    
+@kfp.dsl.component(base_image='python:3.10')
+def train_and_evaluate(X_scaled_csv: str, y: list, model_output: str) -> str:
+    # Read the input data
     X_scaled = pd.read_csv(X_scaled_csv)
     y = pd.Series(y)
 
@@ -29,9 +30,7 @@ def train_and_evaluate_component(X_scaled_csv: str, y: list, model_output: str):
 
     # Save the model
     joblib.dump(model, model_output)
-    return accuracy, roc_auc
 
-# Define the component
-@kfp.dsl.component(base_image='python:3.10')
-def train_and_evaluate(X_scaled_csv: str, y: list, model_output: str):
-    train_and_evaluate_component(X_scaled_csv, y, model_output)
+    # Return the model output file path
+    return model_output
+

@@ -4,9 +4,14 @@ from sklearn.preprocessing import MinMaxScaler
 import pandas as pd
 import joblib
 
-# Component to preprocess data (using both datasets)
-def preprocess_data_component(output_X_scaled_csv, output_scaler, output_y):
 
+
+@kfp.dsl.component(base_image='python:3.10')
+def preprocess_data(
+    output_X_scaled_csv: kfp.dsl.OutputPath(str), # type: ignore
+    output_scaler: kfp.dsl.OutputPath(str), # type: ignore
+    output_y: kfp.dsl.OutputPath(list) # type: ignore
+):
     df1 = pd.read_csv('./models/diabetes.csv')  
     df2 = pd.read_csv('./models/diabetes2.csv')  
     
@@ -32,11 +37,3 @@ def preprocess_data_component(output_X_scaled_csv, output_scaler, output_y):
     
     # Set the target variable output
     output_y.set(y.to_list())
-
-@kfp.dsl.component(base_image='python:3.10')
-def preprocess_data(
-    output_X_scaled_csv: kfp.dsl.OutputPath(str), # type: ignore
-    output_scaler: kfp.dsl.OutputPath(str), # type: ignore
-    output_y: kfp.dsl.OutputPath(list) # type: ignore
-):
-    preprocess_data_component(output_X_scaled_csv, output_scaler, output_y)

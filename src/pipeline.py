@@ -12,17 +12,18 @@ def diabetes_prediction_pipeline():
 
     preprocess_task = preprocess_data()
 
-    # Train the model
+    # Train the model and return the model file path
     train_task = train_and_evaluate(
         X_scaled_csv=preprocess_task.outputs['output_X_scaled_csv'],
         y=preprocess_task.outputs['output_y'],
-        model_output='/tmp/model.pkl'
+        model_output='/tmp/model.pkl'  # Model output path
     )
 
-    # Hyperparameter tuning
+    # Hyperparameter tuning, use the model path output from train_and_evaluate
     hyperparameter_task = hyperparameter_tuning(
         X_scaled_csv=preprocess_task.outputs['output_X_scaled_csv'],
         y=preprocess_task.outputs['output_y'],
+        model_input=train_task.output,  # Correct reference to the model file path
         best_model_output='/tmp/best_model.pkl'
     )
 
