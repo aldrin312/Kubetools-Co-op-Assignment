@@ -1,0 +1,186 @@
+# PIPELINE DEFINITION
+# Name: diabetes-prediction-pipeline
+# Description: A pipeline for training and optimizing a diabetes prediction model
+components:
+  comp-hyperparameter-tuning:
+    executorLabel: exec-hyperparameter-tuning
+    inputDefinitions:
+      parameters:
+        X_scaled_csv:
+          parameterType: STRING
+        best_model_output:
+          parameterType: STRING
+        y:
+          parameterType: LIST
+  comp-preprocess-data:
+    executorLabel: exec-preprocess-data
+    outputDefinitions:
+      parameters:
+        output_X_scaled_csv:
+          parameterType: STRING
+        output_scaler:
+          parameterType: STRING
+        output_y:
+          parameterType: LIST
+  comp-train-and-evaluate:
+    executorLabel: exec-train-and-evaluate
+    inputDefinitions:
+      parameters:
+        X_scaled_csv:
+          parameterType: STRING
+        model_output:
+          parameterType: STRING
+        y:
+          parameterType: LIST
+deploymentSpec:
+  executors:
+    exec-hyperparameter-tuning:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - hyperparameter_tuning
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.12.1'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
+          $0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef hyperparameter_tuning(X_scaled_csv: str, y: list, best_model_output:\
+          \ str):\n    hyperparameter_tuning_component(X_scaled_csv, y, best_model_output)\n\
+          \n"
+        image: python:3.10
+    exec-preprocess-data:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - preprocess_data
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.12.1'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
+          $0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef preprocess_data(\n    output_X_scaled_csv: kfp.dsl.OutputPath(str),\
+          \ # type: ignore\n    output_scaler: kfp.dsl.OutputPath(str), # type: ignore\n\
+          \    output_y: kfp.dsl.OutputPath(list) # type: ignore\n):\n    preprocess_data_component(output_X_scaled_csv,\
+          \ output_scaler, output_y)\n\n"
+        image: python:3.10
+    exec-train-and-evaluate:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - train_and_evaluate
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.12.1'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
+          $0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef train_and_evaluate(X_scaled_csv: str, y: list, model_output:\
+          \ str):\n    train_and_evaluate_component(X_scaled_csv, y, model_output)\n\
+          \n"
+        image: python:3.10
+pipelineInfo:
+  description: A pipeline for training and optimizing a diabetes prediction model
+  name: diabetes-prediction-pipeline
+root:
+  dag:
+    tasks:
+      hyperparameter-tuning:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-hyperparameter-tuning
+        dependentTasks:
+        - preprocess-data
+        inputs:
+          parameters:
+            X_scaled_csv:
+              taskOutputParameter:
+                outputParameterKey: output_X_scaled_csv
+                producerTask: preprocess-data
+            best_model_output:
+              runtimeValue:
+                constant: /tmp/best_model.pkl
+            y:
+              taskOutputParameter:
+                outputParameterKey: output_y
+                producerTask: preprocess-data
+        taskInfo:
+          name: hyperparameter-tuning
+      preprocess-data:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-preprocess-data
+        taskInfo:
+          name: preprocess-data
+      train-and-evaluate:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-train-and-evaluate
+        dependentTasks:
+        - preprocess-data
+        inputs:
+          parameters:
+            X_scaled_csv:
+              taskOutputParameter:
+                outputParameterKey: output_X_scaled_csv
+                producerTask: preprocess-data
+            model_output:
+              runtimeValue:
+                constant: /tmp/model.pkl
+            y:
+              taskOutputParameter:
+                outputParameterKey: output_y
+                producerTask: preprocess-data
+        taskInfo:
+          name: train-and-evaluate
+schemaVersion: 2.1.0
+sdkVersion: kfp-2.12.1
